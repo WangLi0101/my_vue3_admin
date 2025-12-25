@@ -146,7 +146,7 @@ const transitionMain = defineComponent({
                       :is="Comp"
                       :key="fullPath"
                       :frameInfo="frameInfo"
-                      class="main-content"
+                      class="main-content h-full bg-white p-4"
                     />
                   </keep-alive>
                   <component
@@ -154,11 +154,10 @@ const transitionMain = defineComponent({
                     v-else
                     :key="fullPath"
                     :frameInfo="frameInfo"
-                    class="main-content"
+                    class="main-content h-full bg-white p-4"
                   />
                 </transitionMain>
               </div>
-              <LayFooter v-if="!hideFooter" />
             </el-scrollbar>
             <div v-else class="grow">
               <transitionMain :route="route">
@@ -186,9 +185,6 @@ const transitionMain = defineComponent({
         </LayFrame>
       </template>
     </router-view>
-
-    <!-- 页脚 -->
-    <LayFooter v-if="!hideFooter && !fixedHeader" />
   </section>
 </template>
 
@@ -196,7 +192,7 @@ const transitionMain = defineComponent({
 .app-main {
   position: relative;
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 15px);
   overflow-x: hidden;
 }
 
@@ -208,6 +204,6 @@ const transitionMain = defineComponent({
 }
 
 .main-content {
-  margin: 24px;
+  margin: 15px;
 }
 </style>
