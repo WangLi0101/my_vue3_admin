@@ -36,6 +36,48 @@ declare global {
     mozRequestAnimationFrame: (callback: FrameRequestCallback) => number;
     oRequestAnimationFrame: (callback: FrameRequestCallback) => number;
     msRequestAnimationFrame: (callback: FrameRequestCallback) => number;
+    DocsAPI:
+      | {
+          DocEditor: {
+            new (
+              placeholderId: string,
+              config: {
+                document: {
+                  fileType: string;
+                  key: string;
+                  title: string;
+                  url: string;
+                  permissions?: {
+                    edit?: boolean;
+                    download?: boolean;
+                    print?: boolean;
+                    review?: boolean;
+                  };
+                };
+                documentType: string;
+                editorConfig: {
+                  callbackUrl: string;
+                  mode: "view" | "edit";
+                  lang?: string;
+                  user?: {
+                    id: string;
+                    name: string;
+                  };
+                  customization?: {
+                    forcesave?: boolean;
+                    [key: string]: any;
+                  };
+                };
+                token?: string;
+                width?: string;
+                height?: string;
+              }
+            ): {
+              destroyEditor: () => void;
+            };
+          };
+        }
+      | undefined;
   }
 
   /**
