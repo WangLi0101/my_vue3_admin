@@ -25,6 +25,9 @@
 
     <!-- Main Content -->
     <div class="content flex-1 flex overflow-hidden relative">
+      <!-- Palette -->
+      <Palette :modeler="modelerInstance" />
+
       <!-- Canvas -->
       <div
         id="bpmn-flow"
@@ -49,6 +52,7 @@ import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
 import flowableModdleDescriptor from "./utils/flowable.json";
 import leaveApprovalXml from "./utils/leaveApproval.xml?raw";
 import ConfigPanel from "./components/ConfigPanel.vue";
+import Palette from "./components/Palette.vue";
 
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 
@@ -101,5 +105,12 @@ onBeforeUnmount(() => {
   /* Dot grid pattern */
   background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
   background-size: 20px 20px;
+}
+</style>
+
+<style>
+/* Hide default bpmn-js palette */
+.djs-palette {
+  display: none !important;
 }
 </style>
