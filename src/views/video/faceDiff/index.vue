@@ -1,7 +1,3 @@
 <template>
-  <div class="face-diff">faceDiff</div>
+  <div class="test">face diff</div>
 </template>
-
-<script setup lang="ts"></script>
-
-<style lang="scss" scoped></style>

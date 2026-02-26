@@ -56,8 +56,10 @@
     "animate.css": "^4.1.1",
     "axios": "^1.12.2",
     "dayjs": "^1.11.18",
+    "diff": "^8.0.2",
     "echarts": "^6.0.0",
     "element-plus": "^2.11.5",
+    "jieba-wasm": "^2.4.0",
     "js-cookie": "^3.0.5",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
@@ -68,11 +70,11 @@
     "qs": "^6.14.0",
     "responsive-storage": "^2.2.0",
     "sortablejs": "^1.15.6",
+    "tcplayer.js": "4.7.2",
     "vue": "^3.5.22",
     "vue-router": "^4.6.3",
     "vue-tippy": "^6.7.1",
-    "vue-types": "^6.0.0",
-    "tcplayer.js": "4.7.2"
+    "vue-types": "^6.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.1.0",
@@ -125,6 +127,8 @@
     "vite-plugin-fake-server": "^2.2.0",
     "vite-plugin-remove-console": "^2.2.0",
     "vite-plugin-router-warn": "^1.0.0",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0",
     "vite-svg-loader": "^5.1.0",
     "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.1.2"
