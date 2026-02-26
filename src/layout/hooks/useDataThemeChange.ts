@@ -66,7 +66,7 @@ export function useDataThemeChange() {
       setEpThemeColor(getConfig().EpThemeColor);
     } else {
       const colors = themeColors.value.find(v => v.themeColor === theme);
-      setEpThemeColor(colors.color);
+      setEpThemeColor(colors?.color);
     }
   }
 

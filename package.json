@@ -55,6 +55,7 @@
     "@vueuse/motion": "^3.0.3",
     "animate.css": "^4.1.1",
     "axios": "^1.12.2",
+    "bpmn-js": "^18.10.1",
     "dayjs": "^1.11.18",
     "diff": "^8.0.2",
     "echarts": "^6.0.0",
