@@ -50,16 +50,16 @@ withDefaults(
   }
 );
 
-function isGroup(node: ConditionNodeDraft): node is ConditionGroupDraft {
+const isGroup = (node: ConditionNodeDraft): node is ConditionGroupDraft => {
   return node.nodeType === "group";
-}
+};
 
-function getOperatorLabel(operator: string) {
+const getOperatorLabel = (operator: string) => {
   return (
     operatorOptions.find(item => item.value === operator)?.label ||
     `操作符(${operator})`
   );
-}
+};
 </script>
 
 <style lang="scss" scoped>

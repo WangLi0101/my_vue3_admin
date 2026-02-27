@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="ruleset-editor">
     <el-card shadow="never">
       <template #header>
@@ -164,6 +164,8 @@ import {
   createEventParamDraft,
   createId,
   createRuleDraft,
+  engineRuleToDraft,
+  toEngineRule,
   type ConditionLeafDraft,
   type ConditionLogic,
   type ConditionNodeDraft,
@@ -185,7 +187,7 @@ interface RuleRunLog {
 }
 
 interface ImportPayload {
-  rules: Record<string, any>[];
+  rules: Partial<RuleProperties>[];
 }
 
 const rules = ref<RuleDraft[]>([createRuleDraft(1)]);
@@ -230,212 +232,26 @@ const previewTextDisplay = computed(() =>
   JSON.stringify(previewText.value, null, 2)
 );
 
-function parseLooseValue(raw: string) {
-  const source = raw.trim();
-  if (!source) return "";
-  if (source === "true") return true;
-  if (source === "false") return false;
-  if (/^-?\d+(\.\d+)?$/.test(source)) return Number(source);
-
-  const isJsonLike =
-    (source.startsWith("{") && source.endsWith("}")) ||
-    (source.startsWith("[") && source.endsWith("]"));
-
-  if (isJsonLike) {
-    try {
-      return JSON.parse(source);
-    } catch {
-      return source;
-    }
-  }
-
-  return source;
-}
-
-function parseParamValue(param: {
-  key: string;
-  value: string;
-  valueType: ParamValueType;
-}) {
-  const source = param.value.trim();
-
-  switch (param.valueType) {
-    case "number":
-      if (!source || Number.isNaN(Number(source))) {
-        throw new Error(`动作参数「${param.key || "未命名"}」不是有效数字`);
-      }
-      return Number(source);
-    case "boolean":
-      if (!["true", "false"].includes(source)) {
-        throw new Error(
-          `动作参数「${param.key || "未命名"}」布尔值只能是 true 或 false`
-        );
-      }
-      return source === "true";
-    case "json":
-      try {
-        return JSON.parse(source || "{}");
-      } catch (error) {
-        throw new Error(
-          `动作参数「${param.key || "未命名"}」JSON 解析失败：${
-            (error as Error).message
-          }`
-        );
-      }
-    default:
-      return param.value;
-  }
-}
-
-function toEngineCondition(
-  node: ConditionNodeDraft
-): Record<string, any> | null {
-  if (node.nodeType === "leaf") {
-    if (!node.fact.trim()) return null;
-    return {
-      fact: node.fact.trim(),
-      operator: node.operator,
-      value: parseLooseValue(node.value)
-    };
-  }
-
-  const children = node.children
-    .map(child => toEngineCondition(child))
-    .filter(Boolean) as Record<string, any>[];
-  if (children.length === 0) return null;
-
-  return {
-    [node.logic]: children
-  };
-}
-
-function toEngineRule(rule: RuleDraft): RuleProperties {
-  const parsedConditions = toEngineCondition(rule.rootCondition);
-  if (!parsedConditions) {
-    throw new Error(`规则「${rule.name || "未命名"}」至少需要一个有效条件`);
-  }
-
-  const params: Record<string, unknown> = {};
-  for (const item of rule.eventParams) {
-    const key = item.key.trim();
-    if (!key) continue;
-    params[key] = parseParamValue(item);
-  }
-
-  return {
-    name: rule.name.trim() || "未命名规则",
-    priority: rule.priority || 1,
-    conditions: parsedConditions,
-    event: {
-      type: rule.eventType.trim() || "rule.matched",
-      params
-    }
-  };
-}
-
-function parseFacts() {
+const parseFacts = () => {
   const parsed = JSON.parse(factsText.value);
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
     throw new Error("事实数据必须是 JSON 对象");
   }
   return parsed as Record<string, unknown>;
-}
+};
 
-function toInputText(value: unknown) {
-  if (typeof value === "string") return value;
-  if (
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    value === null ||
-    Array.isArray(value) ||
-    typeof value === "object"
-  ) {
-    return JSON.stringify(value);
-  }
-  return "";
-}
-
-function detectParamType(value: unknown): ParamValueType {
-  if (typeof value === "number") return "number";
-  if (typeof value === "boolean") return "boolean";
-  if (value !== null && typeof value === "object") return "json";
-  return "string";
-}
-
-function parseRawConditionNode(raw: unknown): ConditionNodeDraft | null {
-  if (!raw || typeof raw !== "object") return null;
-
-  const node = raw as Record<string, any>;
-  if ("fact" in node && "operator" in node) {
-    const leaf: ConditionLeafDraft = {
-      ...createConditionDraft(),
-      fact: String(node.fact ?? ""),
-      operator: String(node.operator ?? "equal"),
-      value: toInputText(node.value)
-    };
-    return leaf;
-  }
-
-  const logic: ConditionLogic | null = Array.isArray(node.all)
-    ? "all"
-    : Array.isArray(node.any)
-      ? "any"
-      : null;
-  if (!logic) return null;
-
-  const sourceChildren = Array.isArray(node[logic]) ? node[logic] : [];
-  const children = sourceChildren
-    .map((item: unknown) => parseRawConditionNode(item))
-    .filter(Boolean) as ConditionNodeDraft[];
-
-  return createConditionGroupDraft(
-    logic,
-    children.length > 0 ? children : [createConditionDraft()]
-  );
-}
-
-function engineRuleToDraft(raw: Record<string, any>, index: number): RuleDraft {
-  const parsedCondition = parseRawConditionNode(raw?.conditions);
-  const rootCondition =
-    parsedCondition?.nodeType === "group"
-      ? parsedCondition
-      : createConditionGroupDraft("all");
-
-  const params = raw?.event?.params;
-  const eventParams =
-    params && typeof params === "object"
-      ? Object.entries(params).map(([key, value]) => ({
-          id: createId(),
-          key,
-          valueType: detectParamType(value),
-          value: toInputText(value)
-        }))
-      : [];
-
-  return {
-    id: createId(),
-    name: String(raw?.name || `导入规则 ${index + 1}`),
-    description: "",
-    priority: Number(raw?.priority || index + 1),
-    rootCondition,
-    eventType: String(raw?.event?.type || "rule.matched"),
-    eventParams:
-      eventParams.length > 0 ? eventParams : [createEventParamDraft()]
-  };
-}
-
-function fillImportFromCurrent() {
+const fillImportFromCurrent = () => {
   importText.value = previewTextDisplay.value;
-}
+};
 
-function importRules() {
+const importRules = () => {
   if (!importText.value.trim()) {
     ElMessage.warning("请先输入要导入的规则 JSON");
     return;
   }
   try {
     const parsed = JSON.parse(importText.value);
-    let rawRules: Record<string, any>[] = [];
+    let rawRules: Partial<RuleProperties>[] = [];
 
     if (Array.isArray(parsed)) {
       rawRules = parsed;
@@ -462,11 +278,11 @@ function importRules() {
   } catch (error) {
     ElMessage.error(`导入失败：${(error as Error).message}`);
   }
-}
+};
 
-function loadDemo() {
-  const demoRules = (signupRules as Record<string, any>[]).map((rule, index) =>
-    engineRuleToDraft(rule, index)
+const loadDemo = () => {
+  const demoRules = (signupRules as Partial<RuleProperties>[]).map(
+    (rule, index) => engineRuleToDraft(rule, index)
   );
   if (demoRules.length === 0) {
     ElMessage.error("示例规则为空，请检查示例 JSON");
@@ -476,9 +292,9 @@ function loadDemo() {
   activeRuleId.value = demoRules[0].id;
   factsText.value = JSON.stringify(signupFacts, null, 2);
   ElMessage.success("报名系统示例规则已加载（6条规则）");
-}
+};
 
-async function runRules() {
+const runRules = async () => {
   if (factsError.value) {
     ElMessage.error(`事实数据有误：${factsError.value}`);
     return;
@@ -538,12 +354,12 @@ async function runRules() {
   } finally {
     running.value = false;
   }
-}
+};
 
-function clearRunResult() {
+const clearRunResult = () => {
   runLogs.value = [];
   lastRunAt.value = "";
-}
+};
 </script>
 
 <style lang="scss" scoped>

@@ -94,19 +94,19 @@ const emit = defineEmits<{
   removeSelf: [];
 }>();
 
-function isGroup(node: ConditionNodeDraft): node is ConditionGroupDraft {
+const isGroup = (node: ConditionNodeDraft): node is ConditionGroupDraft => {
   return node.nodeType === "group";
-}
+};
 
-function addLeaf() {
+const addLeaf = () => {
   groupRef.value.children.push(createConditionDraft());
-}
+};
 
-function addGroup() {
+const addGroup = () => {
   groupRef.value.children.push(createConditionGroupDraft("all"));
-}
+};
 
-function removeChild(nodeId: string) {
+const removeChild = (nodeId: string) => {
   if (groupRef.value.children.length <= 1) {
     ElMessage.warning("每个条件组至少保留一个子节点");
     return;
@@ -114,7 +114,7 @@ function removeChild(nodeId: string) {
   groupRef.value.children = groupRef.value.children.filter(
     item => item.id !== nodeId
   );
-}
+};
 </script>
 
 <style lang="scss" scoped>

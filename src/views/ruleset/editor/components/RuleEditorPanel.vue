@@ -45,14 +45,6 @@
           <el-form-item label="规则名称">
             <el-input v-model="rule.name" placeholder="例如：报名资格通过" />
           </el-form-item>
-          <el-form-item label="规则描述">
-            <el-input
-              v-model="rule.description"
-              type="textarea"
-              :rows="2"
-              placeholder="可选，用于说明这条规则的业务意图"
-            />
-          </el-form-item>
           <el-form-item label="优先级">
             <el-input-number v-model="rule.priority" :min="1" :max="999" />
           </el-form-item>
@@ -122,14 +114,6 @@
             placeholder="例如：报名资格通过"
           />
         </el-form-item>
-        <el-form-item label="规则描述">
-          <el-input
-            v-model="newRuleForm.description"
-            type="textarea"
-            :rows="2"
-            placeholder="可选"
-          />
-        </el-form-item>
         <el-form-item label="优先级">
           <el-input-number v-model="newRuleForm.priority" :min="1" :max="999" />
         </el-form-item>
@@ -184,24 +168,22 @@ const activeRuleIdRef = defineModel<string>("activeRuleId", { required: true });
 const addRuleDialogVisible = ref(false);
 const newRuleForm = ref({
   name: "",
-  description: "",
   priority: 1,
   conditionLogic: "all" as ConditionLogic,
   eventType: "rule.matched"
 });
 
-function openAddRuleDialog() {
+const openAddRuleDialog = () => {
   newRuleForm.value = {
     name: `规则 ${rulesRef.value.length + 1}`,
-    description: "",
     priority: rulesRef.value.length + 1,
     conditionLogic: "all",
     eventType: "rule.matched"
   };
   addRuleDialogVisible.value = true;
-}
+};
 
-function confirmAddRule() {
+const confirmAddRule = () => {
   const name = newRuleForm.value.name.trim();
   if (!name) {
     ElMessage.warning("请填写规则名称");
@@ -210,7 +192,6 @@ function confirmAddRule() {
 
   const next = createRuleDraft(rulesRef.value.length + 1);
   next.name = name;
-  next.description = newRuleForm.value.description.trim();
   next.priority = newRuleForm.value.priority;
   next.rootCondition.logic = newRuleForm.value.conditionLogic;
   next.eventType = newRuleForm.value.eventType.trim() || "rule.matched";
@@ -219,13 +200,13 @@ function confirmAddRule() {
   activeRuleIdRef.value = next.id;
   addRuleDialogVisible.value = false;
   ElMessage.success("规则已新增");
-}
+};
 
-function getRule(ruleId: string) {
+const getRule = (ruleId: string) => {
   return rulesRef.value.find(item => item.id === ruleId);
-}
+};
 
-function removeRule(ruleId: string) {
+const removeRule = (ruleId: string) => {
   if (rulesRef.value.length <= 1) {
     ElMessage.warning("至少保留一条规则");
     return;
@@ -235,16 +216,15 @@ function removeRule(ruleId: string) {
   if (!rulesRef.value.some(item => item.id === activeRuleIdRef.value)) {
     activeRuleIdRef.value = rulesRef.value[0].id;
   }
-}
+};
 
-function resetRule(ruleId: string) {
+const resetRule = (ruleId: string) => {
   const index = rulesRef.value.findIndex(item => item.id === ruleId);
   if (index < 0) return;
 
   const current = rulesRef.value[index];
   const next = createRuleDraft(index + 1);
   next.name = current.name;
-  next.description = current.description;
   next.priority = current.priority;
   next.rootCondition.logic = current.rootCondition.logic;
   next.eventType = current.eventType;
@@ -253,20 +233,20 @@ function resetRule(ruleId: string) {
   if (activeRuleIdRef.value === ruleId) {
     activeRuleIdRef.value = next.id;
   }
-}
+};
 
-function addEventParam(ruleId: string) {
+const addEventParam = (ruleId: string) => {
   const target = getRule(ruleId);
   target?.eventParams.push(createEventParamDraft());
-}
+};
 
-function removeEventParam(ruleId: string, paramId: string) {
+const removeEventParam = (ruleId: string, paramId: string) => {
   const target = getRule(ruleId);
   if (!target) return;
   target.eventParams = target.eventParams.filter(item => item.id !== paramId);
-}
+};
 
-function formatOperator(operator: string) {
+const formatOperator = (operator: string) => {
   const map: Record<string, string> = {
     equal: "==",
     notEqual: "!=",
@@ -280,9 +260,9 @@ function formatOperator(operator: string) {
     notIn: "NOT_IN"
   };
   return map[operator] || operator;
-}
+};
 
-function formatValue(raw: string) {
+const formatValue = (raw: string) => {
   const source = raw.trim();
   if (!source) return "<value>";
   if (
@@ -295,9 +275,9 @@ function formatValue(raw: string) {
     return source;
   }
   return `"${source.replaceAll('"', '\\"')}"`;
-}
+};
 
-function formatNode(node: ConditionNodeDraft): string {
+const formatNode = (node: ConditionNodeDraft): string => {
   if (node.nodeType === "leaf") {
     const fact = node.fact.trim() || "<fact>";
     return `${fact} ${formatOperator(node.operator)} ${formatValue(node.value)}`;
@@ -307,11 +287,11 @@ function formatNode(node: ConditionNodeDraft): string {
   if (children.length === 0) return "(<empty-group>)";
   const joiner = node.logic === "all" ? " AND " : " OR ";
   return `(${children.join(joiner)})`;
-}
+};
 
-function getRuleExpression(rule: RuleDraft) {
+const getRuleExpression = (rule: RuleDraft) => {
   return formatNode(rule.rootCondition);
-}
+};
 </script>
 
 <style lang="scss" scoped>
