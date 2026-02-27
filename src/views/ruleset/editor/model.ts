@@ -1,12 +1,22 @@
 export type ConditionLogic = "all" | "any";
 export type ParamValueType = "string" | "number" | "boolean" | "json";
 
-export interface ConditionDraft {
+export interface ConditionLeafDraft {
   id: string;
+  nodeType: "leaf";
   fact: string;
   operator: string;
   value: string;
 }
+
+export interface ConditionGroupDraft {
+  id: string;
+  nodeType: "group";
+  logic: ConditionLogic;
+  children: ConditionNodeDraft[];
+}
+
+export type ConditionNodeDraft = ConditionLeafDraft | ConditionGroupDraft;
 
 export interface EventParamDraft {
   id: string;
@@ -20,8 +30,7 @@ export interface RuleDraft {
   name: string;
   description: string;
   priority: number;
-  conditionLogic: ConditionLogic;
-  conditions: ConditionDraft[];
+  rootCondition: ConditionGroupDraft;
   eventType: string;
   eventParams: EventParamDraft[];
 }
@@ -52,11 +61,22 @@ export const paramTypeOptions = [
 export const createId = () =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-export const createConditionDraft = (): ConditionDraft => ({
+export const createConditionDraft = (): ConditionLeafDraft => ({
   id: createId(),
+  nodeType: "leaf",
   fact: "",
   operator: "equal",
   value: ""
+});
+
+export const createConditionGroupDraft = (
+  logic: ConditionLogic = "all",
+  children: ConditionNodeDraft[] = [createConditionDraft()]
+): ConditionGroupDraft => ({
+  id: createId(),
+  nodeType: "group",
+  logic,
+  children
 });
 
 export const createEventParamDraft = (): EventParamDraft => ({
@@ -71,8 +91,7 @@ export const createRuleDraft = (index: number): RuleDraft => ({
   name: `规则 ${index}`,
   description: "",
   priority: index,
-  conditionLogic: "all",
-  conditions: [createConditionDraft()],
+  rootCondition: createConditionGroupDraft("all"),
   eventType: "rule.matched",
   eventParams: [createEventParamDraft()]
 });

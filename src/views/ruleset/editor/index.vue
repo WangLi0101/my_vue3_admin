@@ -8,7 +8,7 @@
         type="info"
         :closable="false"
         show-icon
-        title="支持条件、动作参数、规则 JSON 导入导出，以及规则级/规则集级双执行模式。"
+        title="支持条件、动作参数、规则 JSON 导入导出。"
       />
     </el-card>
 
@@ -27,30 +27,6 @@
             <div class="rule-head">
               <span>执行与JSON</span>
               <el-space>
-                <el-select
-                  v-model="executionStrategy"
-                  class="strategy-select"
-                  placeholder="请选择执行策略"
-                >
-                  <el-option
-                    v-for="option in executionStrategyOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
-                <el-select
-                  v-model="rulesetMeta.executionMode"
-                  class="strategy-select"
-                  placeholder="请选择规则集模式"
-                >
-                  <el-option
-                    v-for="option in rulesetExecutionModeOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
                 <el-button type="success" :loading="running" @click="runRules">
                   <el-icon><VideoPlay /></el-icon>
                   执行规则
@@ -59,31 +35,6 @@
               </el-space>
             </div>
           </template>
-
-          <div class="editor-section">
-            <div class="section-title">执行策略说明</div>
-            <el-form label-width="96px" class="ruleset-form">
-              <el-form-item label="规则集名称">
-                <el-input
-                  v-model="rulesetMeta.name"
-                  placeholder="请输入规则集名称"
-                />
-              </el-form-item>
-            </el-form>
-            <el-alert
-              type="warning"
-              :closable="false"
-              show-icon
-              :title="executionStrategyDesc"
-            />
-            <el-alert
-              class="mt-3"
-              type="info"
-              :closable="false"
-              show-icon
-              :title="rulesetExecutionModeDesc"
-            />
-          </div>
 
           <div class="editor-section">
             <div class="section-title">事实数据（Facts）</div>
@@ -114,24 +65,10 @@
               <el-descriptions-item label="实际执行数">
                 {{ evaluatedCount }}
               </el-descriptions-item>
-              <el-descriptions-item label="执行策略">
-                {{ executionStrategyLabel }}
-              </el-descriptions-item>
-              <el-descriptions-item label="规则集模式">
-                {{ rulesetExecutionModeLabel }}
-              </el-descriptions-item>
-              <el-descriptions-item label="规则集结果">
-                <el-tag :type="rulesetResult.tagType">
-                  {{ rulesetResult.status }}
-                </el-tag>
-              </el-descriptions-item>
               <el-descriptions-item label="最后执行时间" :span="2">
                 {{ lastRunAt || "-" }}
               </el-descriptions-item>
             </el-descriptions>
-            <div v-if="runLogs.length > 0" class="result-tip">
-              {{ rulesetResult.detail }}
-            </div>
 
             <div v-if="runLogs.length === 0" class="empty-tip">
               暂无执行结果，点击“执行规则”查看命中详情。
@@ -140,15 +77,11 @@
               <div v-for="item in runLogs" :key="item.ruleId" class="run-item">
                 <div class="run-item-head">
                   <span>{{ item.ruleName }}</span>
-                  <el-tag v-if="item.skipped" type="warning">已跳过</el-tag>
-                  <el-tag v-else :type="item.matched ? 'success' : 'info'">
+                  <el-tag :type="item.matched ? 'success' : 'info'">
                     {{ item.matched ? "命中" : "未命中" }}
                   </el-tag>
                 </div>
-                <div v-if="item.skipped" class="run-item-skip">
-                  {{ item.skipReason }}
-                </div>
-                <div v-else-if="item.error" class="run-item-error">
+                <div v-if="item.error" class="run-item-error">
                   执行失败：{{ item.error }}
                 </div>
                 <template v-else>
@@ -187,7 +120,11 @@
 
           <div class="editor-section">
             <div class="section-title">规则JSON（Engine格式）</div>
-            <el-input :model-value="previewText" type="textarea" :rows="10" />
+            <el-input
+              :model-value="previewTextDisplay"
+              type="textarea"
+              :rows="10"
+            />
           </div>
 
           <div class="editor-section">
@@ -219,12 +156,17 @@ import { ElMessage } from "element-plus";
 import { VideoPlay } from "@element-plus/icons-vue";
 import { Engine, type RuleProperties } from "json-rules-engine";
 import RuleEditorPanel from "./components/RuleEditorPanel.vue";
+import signupFacts from "./examples/signup-facts.json";
+import signupRules from "./examples/signup-rules.json";
 import {
   createConditionDraft,
+  createConditionGroupDraft,
   createEventParamDraft,
   createId,
   createRuleDraft,
+  type ConditionLeafDraft,
   type ConditionLogic,
+  type ConditionNodeDraft,
   type ParamValueType,
   type RuleDraft
 } from "./model";
@@ -233,126 +175,23 @@ defineOptions({
   name: "RuleEngineEditor"
 });
 
-type ExecutionStrategy = "all" | "priorityFirstHit" | "orderFirstHit";
-type RulesetExecutionMode =
-  | "anyMatchedPass"
-  | "allEvaluatedMatchedPass"
-  | "eventPriorityDecision";
-
 interface RuleRunLog {
   ruleId: string;
   ruleName: string;
   matched: boolean;
-  skipped: boolean;
-  skipReason: string;
   events: Array<Record<string, any>>;
   failureEvents: Array<Record<string, any>>;
   error: string;
 }
 
-interface RulesetDecision {
-  status: string;
-  detail: string;
-  tagType: "success" | "warning" | "danger" | "info";
-}
-
-interface RulesetMeta {
-  name: string;
-  executionMode: RulesetExecutionMode;
-}
-
-interface RulesetPayload {
-  ruleset?: Partial<RulesetMeta>;
-  executionStrategy?: ExecutionStrategy;
+interface ImportPayload {
   rules: Record<string, any>[];
 }
 
-const executionStrategyMap: Record<
-  ExecutionStrategy,
-  { label: string; desc: string }
-> = {
-  all: {
-    label: "全部执行",
-    desc: "从上到下执行全部规则，允许多个规则同时命中。"
-  },
-  priorityFirstHit: {
-    label: "按优先级首个命中即停",
-    desc: "按 priority 从高到低执行，命中第一条后停止后续规则。"
-  },
-  orderFirstHit: {
-    label: "按配置顺序首个命中即停",
-    desc: "按当前规则顺序执行，命中第一条后停止后续规则。"
-  }
-};
-
-const executionStrategyOptions = [
-  {
-    value: "all",
-    label: executionStrategyMap.all.label
-  },
-  {
-    value: "priorityFirstHit",
-    label: executionStrategyMap.priorityFirstHit.label
-  },
-  {
-    value: "orderFirstHit",
-    label: executionStrategyMap.orderFirstHit.label
-  }
-] as const;
-
-const rulesetExecutionModeMap: Record<
-  RulesetExecutionMode,
-  { label: string; desc: string }
-> = {
-  anyMatchedPass: {
-    label: "任一命中即通过",
-    desc: "只要任意规则命中，规则集结果即为通过。"
-  },
-  allEvaluatedMatchedPass: {
-    label: "全部命中才通过",
-    desc: "所有已执行规则都命中时才通过，否则不通过。"
-  },
-  eventPriorityDecision: {
-    label: "按事件优先级决策",
-    desc: "按事件类型决策：拒绝 > 候补 > 通过（适合报名系统）。"
-  }
-};
-
-const rulesetExecutionModeOptions = [
-  {
-    value: "eventPriorityDecision",
-    label: rulesetExecutionModeMap.eventPriorityDecision.label
-  },
-  {
-    value: "anyMatchedPass",
-    label: rulesetExecutionModeMap.anyMatchedPass.label
-  },
-  {
-    value: "allEvaluatedMatchedPass",
-    label: rulesetExecutionModeMap.allEvaluatedMatchedPass.label
-  }
-] as const;
-
 const rules = ref<RuleDraft[]>([createRuleDraft(1)]);
 const activeRuleId = ref(rules.value[0].id);
-const executionStrategy = ref<ExecutionStrategy>("all");
-const rulesetMeta = ref<RulesetMeta>({
-  name: "报名规则集",
-  executionMode: "eventPriorityDecision"
-});
 
-const factsText = ref(`{
-  "age": 19,
-  "score": 83,
-  "qualificationPassed": true,
-  "seatsRemaining": 12,
-  "signupDaysBeforeStart": 36,
-  "paidAmount": 1200,
-  "channel": "school",
-  "isBlacklisted": false,
-  "guardianConsent": true,
-  "docsSubmitted": ["id", "photo", "agreement"]
-}`);
+const factsText = ref(JSON.stringify(signupFacts, null, 2));
 
 const importText = ref("");
 const running = ref(false);
@@ -363,108 +202,7 @@ const matchedCount = computed(
   () => runLogs.value.filter(item => item.matched).length
 );
 
-const evaluatedCount = computed(
-  () => runLogs.value.filter(item => !item.skipped).length
-);
-
-const executionStrategyLabel = computed(
-  () => executionStrategyMap[executionStrategy.value].label
-);
-
-const executionStrategyDesc = computed(
-  () => executionStrategyMap[executionStrategy.value].desc
-);
-
-const rulesetExecutionModeLabel = computed(
-  () => rulesetExecutionModeMap[rulesetMeta.value.executionMode].label
-);
-
-const rulesetExecutionModeDesc = computed(
-  () => rulesetExecutionModeMap[rulesetMeta.value.executionMode].desc
-);
-
-const rulesetResult = computed<RulesetDecision>(() => {
-  if (runLogs.value.length === 0) {
-    return {
-      status: "-",
-      detail: "尚未执行规则集。",
-      tagType: "info"
-    };
-  }
-
-  const evaluatedLogs = runLogs.value.filter(
-    item => !item.skipped && !item.error
-  );
-  const matchedLogs = evaluatedLogs.filter(item => item.matched);
-  const matchedEventTypes = matchedLogs.flatMap(item =>
-    item.events.map(event => String(event.type || ""))
-  );
-
-  if (rulesetMeta.value.executionMode === "anyMatchedPass") {
-    const passed = matchedLogs.length > 0;
-    return {
-      status: passed ? "通过" : "不通过",
-      detail: passed
-        ? "规则集模式为“任一命中即通过”，当前至少命中一条规则。"
-        : "规则集模式为“任一命中即通过”，当前无规则命中。",
-      tagType: passed ? "success" : "danger"
-    };
-  }
-
-  if (rulesetMeta.value.executionMode === "allEvaluatedMatchedPass") {
-    const passed =
-      evaluatedLogs.length > 0 && evaluatedLogs.every(item => item.matched);
-    return {
-      status: passed ? "通过" : "不通过",
-      detail: passed
-        ? "规则集模式为“全部命中才通过”，当前所有已执行规则均命中。"
-        : "规则集模式为“全部命中才通过”，存在未命中规则。",
-      tagType: passed ? "success" : "danger"
-    };
-  }
-
-  const hasRejected = matchedEventTypes.some(
-    type =>
-      type.includes(".rejected") ||
-      type.includes(".blocked") ||
-      type.includes(".deny")
-  );
-  if (hasRejected) {
-    return {
-      status: "拒绝",
-      detail: "规则集模式为“按事件优先级决策”，命中拒绝类事件。",
-      tagType: "danger"
-    };
-  }
-
-  const hasWaitlist = matchedEventTypes.some(type =>
-    type.includes(".waitlist")
-  );
-  if (hasWaitlist) {
-    return {
-      status: "候补",
-      detail: "规则集模式为“按事件优先级决策”，命中候补类事件。",
-      tagType: "warning"
-    };
-  }
-
-  const hasApproved = matchedEventTypes.some(
-    type => type.includes(".approved") || type.includes(".pass")
-  );
-  if (hasApproved || matchedLogs.length > 0) {
-    return {
-      status: "通过",
-      detail: "规则集模式为“按事件优先级决策”，命中通过类或普通命中事件。",
-      tagType: "success"
-    };
-  }
-
-  return {
-    status: "未命中",
-    detail: "规则集模式为“按事件优先级决策”，未命中有效事件。",
-    tagType: "info"
-  };
-});
+const evaluatedCount = computed(() => runLogs.value.length);
 
 const factsError = computed(() => {
   try {
@@ -478,33 +216,19 @@ const factsError = computed(() => {
   }
 });
 
-function isExecutionStrategy(value: unknown): value is ExecutionStrategy {
-  return ["all", "priorityFirstHit", "orderFirstHit"].includes(String(value));
-}
-
-function isRulesetExecutionMode(value: unknown): value is RulesetExecutionMode {
-  return [
-    "anyMatchedPass",
-    "allEvaluatedMatchedPass",
-    "eventPriorityDecision"
-  ].includes(String(value));
-}
-
-const previewText = computed(() => {
+const previewText = computed<RuleProperties[] | { error: string }>(() => {
   try {
-    const payload: RulesetPayload = {
-      ruleset: {
-        name: rulesetMeta.value.name,
-        executionMode: rulesetMeta.value.executionMode
-      },
-      executionStrategy: executionStrategy.value,
-      rules: rules.value.map(rule => toEngineRule(rule))
-    };
-    return JSON.stringify(payload, null, 2);
+    return rules.value.map(rule => toEngineRule(rule));
   } catch (error) {
-    return `// 规则 JSON 生成失败：${(error as Error).message}`;
+    return {
+      error: `规则 JSON 生成失败：${(error as Error).message}`
+    };
   }
 });
+
+const previewTextDisplay = computed(() =>
+  JSON.stringify(previewText.value, null, 2)
+);
 
 function parseLooseValue(raw: string) {
   const source = raw.trim();
@@ -563,17 +287,32 @@ function parseParamValue(param: {
   }
 }
 
-function toEngineRule(rule: RuleDraft): RuleProperties {
-  const validConditions = rule.conditions
-    .filter(item => item.fact.trim())
-    .map(item => ({
-      fact: item.fact.trim(),
-      operator: item.operator,
-      value: parseLooseValue(item.value)
-    }));
+function toEngineCondition(
+  node: ConditionNodeDraft
+): Record<string, any> | null {
+  if (node.nodeType === "leaf") {
+    if (!node.fact.trim()) return null;
+    return {
+      fact: node.fact.trim(),
+      operator: node.operator,
+      value: parseLooseValue(node.value)
+    };
+  }
 
-  if (validConditions.length === 0) {
-    throw new Error(`规则「${rule.name || "未命名"}」至少需要一个条件`);
+  const children = node.children
+    .map(child => toEngineCondition(child))
+    .filter(Boolean) as Record<string, any>[];
+  if (children.length === 0) return null;
+
+  return {
+    [node.logic]: children
+  };
+}
+
+function toEngineRule(rule: RuleDraft): RuleProperties {
+  const parsedConditions = toEngineCondition(rule.rootCondition);
+  if (!parsedConditions) {
+    throw new Error(`规则「${rule.name || "未命名"}」至少需要一个有效条件`);
   }
 
   const params: Record<string, unknown> = {};
@@ -586,9 +325,7 @@ function toEngineRule(rule: RuleDraft): RuleProperties {
   return {
     name: rule.name.trim() || "未命名规则",
     priority: rule.priority || 1,
-    conditions: {
-      [rule.conditionLogic]: validConditions
-    },
+    conditions: parsedConditions,
     event: {
       type: rule.eventType.trim() || "rule.matched",
       params
@@ -625,21 +362,44 @@ function detectParamType(value: unknown): ParamValueType {
   return "string";
 }
 
-function engineRuleToDraft(raw: Record<string, any>, index: number): RuleDraft {
-  const logic: ConditionLogic =
-    Array.isArray(raw?.conditions?.all) || !Array.isArray(raw?.conditions?.any)
-      ? "all"
-      : "any";
+function parseRawConditionNode(raw: unknown): ConditionNodeDraft | null {
+  if (!raw || typeof raw !== "object") return null;
 
-  const sourceConditions = raw?.conditions?.[logic];
-  const conditions = Array.isArray(sourceConditions)
-    ? sourceConditions.map((item: Record<string, unknown>) => ({
-        id: createId(),
-        fact: String(item?.fact ?? ""),
-        operator: String(item?.operator ?? "equal"),
-        value: toInputText(item?.value)
-      }))
-    : [createConditionDraft()];
+  const node = raw as Record<string, any>;
+  if ("fact" in node && "operator" in node) {
+    const leaf: ConditionLeafDraft = {
+      ...createConditionDraft(),
+      fact: String(node.fact ?? ""),
+      operator: String(node.operator ?? "equal"),
+      value: toInputText(node.value)
+    };
+    return leaf;
+  }
+
+  const logic: ConditionLogic | null = Array.isArray(node.all)
+    ? "all"
+    : Array.isArray(node.any)
+      ? "any"
+      : null;
+  if (!logic) return null;
+
+  const sourceChildren = Array.isArray(node[logic]) ? node[logic] : [];
+  const children = sourceChildren
+    .map((item: unknown) => parseRawConditionNode(item))
+    .filter(Boolean) as ConditionNodeDraft[];
+
+  return createConditionGroupDraft(
+    logic,
+    children.length > 0 ? children : [createConditionDraft()]
+  );
+}
+
+function engineRuleToDraft(raw: Record<string, any>, index: number): RuleDraft {
+  const parsedCondition = parseRawConditionNode(raw?.conditions);
+  const rootCondition =
+    parsedCondition?.nodeType === "group"
+      ? parsedCondition
+      : createConditionGroupDraft("all");
 
   const params = raw?.event?.params;
   const eventParams =
@@ -657,8 +417,7 @@ function engineRuleToDraft(raw: Record<string, any>, index: number): RuleDraft {
     name: String(raw?.name || `导入规则 ${index + 1}`),
     description: "",
     priority: Number(raw?.priority || index + 1),
-    conditionLogic: logic,
-    conditions: conditions.length > 0 ? conditions : [createConditionDraft()],
+    rootCondition,
     eventType: String(raw?.event?.type || "rule.matched"),
     eventParams:
       eventParams.length > 0 ? eventParams : [createEventParamDraft()]
@@ -666,7 +425,7 @@ function engineRuleToDraft(raw: Record<string, any>, index: number): RuleDraft {
 }
 
 function fillImportFromCurrent() {
-  importText.value = previewText.value;
+  importText.value = previewTextDisplay.value;
 }
 
 function importRules() {
@@ -685,18 +444,8 @@ function importRules() {
       typeof parsed === "object" &&
       Array.isArray(parsed.rules)
     ) {
-      const payload = parsed as RulesetPayload;
+      const payload = parsed as ImportPayload;
       rawRules = payload.rules;
-
-      if (payload.ruleset?.name) {
-        rulesetMeta.value.name = String(payload.ruleset.name);
-      }
-      if (isRulesetExecutionMode(payload.ruleset?.executionMode)) {
-        rulesetMeta.value.executionMode = payload.ruleset.executionMode;
-      }
-      if (isExecutionStrategy(payload.executionStrategy)) {
-        executionStrategy.value = payload.executionStrategy;
-      }
     } else if (parsed && typeof parsed === "object") {
       rawRules = [parsed];
     }
@@ -716,202 +465,16 @@ function importRules() {
 }
 
 function loadDemo() {
-  const demoRules: RuleDraft[] = [
-    {
-      id: createId(),
-      name: "黑名单拦截",
-      description: "黑名单用户直接拒绝报名",
-      priority: 200,
-      conditionLogic: "any",
-      conditions: [
-        {
-          id: createId(),
-          fact: "isBlacklisted",
-          operator: "equal",
-          value: "true"
-        }
-      ],
-      eventType: "signup.rejected.blacklist",
-      eventParams: [
-        {
-          id: createId(),
-          key: "reason",
-          valueType: "string",
-          value: "blacklist"
-        }
-      ]
-    },
-    {
-      id: createId(),
-      name: "未成年监护拦截",
-      description: "年龄小于18且监护同意缺失，拦截报名",
-      priority: 180,
-      conditionLogic: "all",
-      conditions: [
-        {
-          id: createId(),
-          fact: "age",
-          operator: "lessThan",
-          value: "18"
-        },
-        {
-          id: createId(),
-          fact: "guardianConsent",
-          operator: "equal",
-          value: "false"
-        }
-      ],
-      eventType: "signup.rejected.guardian",
-      eventParams: [
-        {
-          id: createId(),
-          key: "reason",
-          valueType: "string",
-          value: "guardian-consent-required"
-        }
-      ]
-    },
-    {
-      id: createId(),
-      name: "名额不足进入候补",
-      description: "名额耗尽时进入候补队列",
-      priority: 150,
-      conditionLogic: "all",
-      conditions: [
-        {
-          id: createId(),
-          fact: "seatsRemaining",
-          operator: "lessThanInclusive",
-          value: "0"
-        }
-      ],
-      eventType: "signup.waitlist",
-      eventParams: [
-        {
-          id: createId(),
-          key: "queue",
-          valueType: "string",
-          value: "default-waitlist"
-        }
-      ]
-    },
-    {
-      id: createId(),
-      name: "报名资格通过",
-      description: "年龄、资格、名额和分数满足时报名通过",
-      priority: 100,
-      conditionLogic: "all",
-      conditions: [
-        {
-          id: createId(),
-          fact: "age",
-          operator: "greaterThanInclusive",
-          value: "18"
-        },
-        {
-          id: createId(),
-          fact: "qualificationPassed",
-          operator: "equal",
-          value: "true"
-        },
-        {
-          id: createId(),
-          fact: "seatsRemaining",
-          operator: "greaterThan",
-          value: "0"
-        },
-        {
-          id: createId(),
-          fact: "score",
-          operator: "greaterThanInclusive",
-          value: "70"
-        }
-      ],
-      eventType: "signup.approved",
-      eventParams: [
-        {
-          id: createId(),
-          key: "enrollType",
-          valueType: "string",
-          value: "normal"
-        }
-      ]
-    },
-    {
-      id: createId(),
-      name: "早鸟优惠",
-      description: "提前报名且已支付时发放早鸟优惠",
-      priority: 80,
-      conditionLogic: "all",
-      conditions: [
-        {
-          id: createId(),
-          fact: "signupDaysBeforeStart",
-          operator: "greaterThanInclusive",
-          value: "30"
-        },
-        {
-          id: createId(),
-          fact: "paidAmount",
-          operator: "greaterThan",
-          value: "0"
-        }
-      ],
-      eventType: "signup.discount.earlybird",
-      eventParams: [
-        {
-          id: createId(),
-          key: "discountRate",
-          valueType: "number",
-          value: "0.15"
-        }
-      ]
-    },
-    {
-      id: createId(),
-      name: "渠道激励",
-      description: "校园或合作渠道报名，打上渠道标签",
-      priority: 60,
-      conditionLogic: "any",
-      conditions: [
-        {
-          id: createId(),
-          fact: "channel",
-          operator: "in",
-          value: '["school", "partner"]'
-        }
-      ],
-      eventType: "signup.channel.bonus",
-      eventParams: [
-        {
-          id: createId(),
-          key: "tag",
-          valueType: "string",
-          value: "channel-priority"
-        }
-      ]
-    }
-  ];
-
+  const demoRules = (signupRules as Record<string, any>[]).map((rule, index) =>
+    engineRuleToDraft(rule, index)
+  );
+  if (demoRules.length === 0) {
+    ElMessage.error("示例规则为空，请检查示例 JSON");
+    return;
+  }
   rules.value = demoRules;
   activeRuleId.value = demoRules[0].id;
-  rulesetMeta.value = {
-    name: "报名审核规则集",
-    executionMode: "eventPriorityDecision"
-  };
-  executionStrategy.value = "all";
-  factsText.value = `{
-  "age": 19,
-  "score": 83,
-  "qualificationPassed": true,
-  "seatsRemaining": 12,
-  "signupDaysBeforeStart": 36,
-  "paidAmount": 1200,
-  "channel": "school",
-  "isBlacklisted": false,
-  "guardianConsent": true,
-  "docsSubmitted": ["id", "photo", "agreement"]
-}`;
+  factsText.value = JSON.stringify(signupFacts, null, 2);
   ElMessage.success("报名系统示例规则已加载（6条规则）");
 }
 
@@ -926,35 +489,11 @@ async function runRules() {
 
   try {
     const logs: RuleRunLog[] = [];
-    const queue =
-      executionStrategy.value === "priorityFirstHit"
-        ? [...rules.value].sort((a, b) => b.priority - a.priority)
-        : [...rules.value];
-
-    const stopOnFirstHit = executionStrategy.value !== "all";
-    let matchedAlready = false;
-
-    for (const draft of queue) {
-      if (stopOnFirstHit && matchedAlready) {
-        logs.push({
-          ruleId: draft.id,
-          ruleName: draft.name || "未命名规则",
-          matched: false,
-          skipped: true,
-          skipReason: `执行策略为「${executionStrategyLabel.value}」，前序规则已命中，当前规则跳过。`,
-          events: [],
-          failureEvents: [],
-          error: ""
-        });
-        continue;
-      }
-
+    for (const draft of rules.value) {
       const log: RuleRunLog = {
         ruleId: draft.id,
         ruleName: draft.name || "未命名规则",
         matched: false,
-        skipped: false,
-        skipReason: "",
         events: [],
         failureEvents: [],
         error: ""
@@ -991,15 +530,11 @@ async function runRules() {
       }
 
       logs.push(log);
-
-      if (stopOnFirstHit && log.matched) {
-        matchedAlready = true;
-      }
     }
 
     runLogs.value = logs;
     lastRunAt.value = new Date().toLocaleString();
-    ElMessage.success(`规则执行完成（${executionStrategyLabel.value}）`);
+    ElMessage.success("规则执行完成");
   } finally {
     running.value = false;
   }
@@ -1034,10 +569,6 @@ function clearRunResult() {
   justify-content: space-between;
 }
 
-.strategy-select {
-  width: 220px;
-}
-
 .editor-section {
   padding-top: 12px;
   margin-top: 12px;
@@ -1050,18 +581,6 @@ function clearRunResult() {
   align-items: center;
   margin-bottom: 10px;
   font-weight: 600;
-}
-
-.ruleset-form {
-  margin-bottom: 8px;
-}
-
-.result-tip {
-  padding: 8px 10px;
-  margin-top: 8px;
-  color: var(--el-text-color-secondary);
-  background: var(--el-fill-color-light);
-  border-radius: 6px;
 }
 
 .empty-tip {
@@ -1089,11 +608,6 @@ function clearRunResult() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.run-item-skip {
-  margin-top: 8px;
-  color: var(--el-color-warning);
 }
 
 .run-item-error {

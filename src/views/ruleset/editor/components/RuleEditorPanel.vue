@@ -56,20 +56,14 @@
           <el-form-item label="优先级">
             <el-input-number v-model="rule.priority" :min="1" :max="999" />
           </el-form-item>
-          <el-form-item label="条件关系">
-            <el-radio-group v-model="rule.conditionLogic">
-              <el-radio-button value="all">全部满足（all）</el-radio-button>
-              <el-radio-button value="any">任一满足（any）</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
         </el-form>
 
-        <RuleConditionsEditor
-          v-model:conditions="rule.conditions"
-          :rule-id="rule.id"
-          @add-condition="addCondition"
-          @remove-condition="removeCondition"
-        />
+        <div class="editor-section">
+          <div class="section-title">条件关系预览</div>
+          <div class="expression-box">{{ getRuleExpression(rule) }}</div>
+        </div>
+
+        <RuleConditionsEditor v-model:root-condition="rule.rootCondition" />
 
         <div class="editor-section">
           <div class="section-title">
@@ -139,7 +133,7 @@
         <el-form-item label="优先级">
           <el-input-number v-model="newRuleForm.priority" :min="1" :max="999" />
         </el-form-item>
-        <el-form-item label="条件关系">
+        <el-form-item label="根组关系">
           <el-radio-group v-model="newRuleForm.conditionLogic">
             <el-radio-button value="all">全部满足（all）</el-radio-button>
             <el-radio-button value="any">任一满足（any）</el-radio-button>
@@ -168,11 +162,11 @@ import { ElMessage } from "element-plus";
 import { Delete, Plus, RefreshRight } from "@element-plus/icons-vue";
 import RuleConditionsEditor from "./RuleConditionsEditor.vue";
 import {
-  createConditionDraft,
   createEventParamDraft,
   createRuleDraft,
   paramTypeOptions,
   type ConditionLogic,
+  type ConditionNodeDraft,
   type RuleDraft
 } from "../model";
 
@@ -218,7 +212,7 @@ function confirmAddRule() {
   next.name = name;
   next.description = newRuleForm.value.description.trim();
   next.priority = newRuleForm.value.priority;
-  next.conditionLogic = newRuleForm.value.conditionLogic;
+  next.rootCondition.logic = newRuleForm.value.conditionLogic;
   next.eventType = newRuleForm.value.eventType.trim() || "rule.matched";
 
   rulesRef.value.push(next);
@@ -252,28 +246,13 @@ function resetRule(ruleId: string) {
   next.name = current.name;
   next.description = current.description;
   next.priority = current.priority;
-  next.conditionLogic = current.conditionLogic;
+  next.rootCondition.logic = current.rootCondition.logic;
   next.eventType = current.eventType;
   rulesRef.value[index] = next;
 
   if (activeRuleIdRef.value === ruleId) {
     activeRuleIdRef.value = next.id;
   }
-}
-
-function addCondition(ruleId: string) {
-  const target = getRule(ruleId);
-  target?.conditions.push(createConditionDraft());
-}
-
-function removeCondition(ruleId: string, conditionId: string) {
-  const target = getRule(ruleId);
-  if (!target) return;
-  if (target.conditions.length <= 1) {
-    ElMessage.warning("至少保留一个条件");
-    return;
-  }
-  target.conditions = target.conditions.filter(item => item.id !== conditionId);
 }
 
 function addEventParam(ruleId: string) {
@@ -285,6 +264,53 @@ function removeEventParam(ruleId: string, paramId: string) {
   const target = getRule(ruleId);
   if (!target) return;
   target.eventParams = target.eventParams.filter(item => item.id !== paramId);
+}
+
+function formatOperator(operator: string) {
+  const map: Record<string, string> = {
+    equal: "==",
+    notEqual: "!=",
+    greaterThan: ">",
+    greaterThanInclusive: ">=",
+    lessThan: "<",
+    lessThanInclusive: "<=",
+    contains: "CONTAINS",
+    doesNotContain: "NOT_CONTAINS",
+    in: "IN",
+    notIn: "NOT_IN"
+  };
+  return map[operator] || operator;
+}
+
+function formatValue(raw: string) {
+  const source = raw.trim();
+  if (!source) return "<value>";
+  if (
+    source === "true" ||
+    source === "false" ||
+    /^-?\d+(\.\d+)?$/.test(source) ||
+    (source.startsWith("[") && source.endsWith("]")) ||
+    (source.startsWith("{") && source.endsWith("}"))
+  ) {
+    return source;
+  }
+  return `"${source.replaceAll('"', '\\"')}"`;
+}
+
+function formatNode(node: ConditionNodeDraft): string {
+  if (node.nodeType === "leaf") {
+    const fact = node.fact.trim() || "<fact>";
+    return `${fact} ${formatOperator(node.operator)} ${formatValue(node.value)}`;
+  }
+
+  const children = node.children.map(child => formatNode(child));
+  if (children.length === 0) return "(<empty-group>)";
+  const joiner = node.logic === "all" ? " AND " : " OR ";
+  return `(${children.join(joiner)})`;
+}
+
+function getRuleExpression(rule: RuleDraft) {
+  return formatNode(rule.rootCondition);
 }
 </script>
 
@@ -339,6 +365,20 @@ function removeEventParam(ruleId: string, paramId: string) {
   align-items: center;
   margin-bottom: 10px;
   font-weight: 600;
+}
+
+.expression-box {
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--el-text-color-regular);
+  white-space: nowrap;
+  background: var(--el-fill-color-light);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
 }
 
 .param-row {

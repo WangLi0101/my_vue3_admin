@@ -1,0 +1,12 @@
+{
+  "age": 19,
+  "score": 83,
+  "qualificationPassed": true,
+  "seatsRemaining": 12,
+  "signupDaysBeforeStart": 36,
+  "paidAmount": 1200,
+  "channel": "school",
+  "isBlacklisted": false,
+  "guardianConsent": true,
+  "docsSubmitted": ["id", "photo", "agreement"]
+}
