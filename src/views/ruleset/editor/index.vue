@@ -103,6 +103,29 @@
                       }}</pre>
                     </div>
                   </div>
+                  <div
+                    v-if="!item.matched && item.failedConditions.length > 0"
+                    class="failed-conditions-block"
+                  >
+                    <div class="failed-conditions-title">不满足的条件</div>
+                    <div
+                      v-for="(cond, condIdx) in item.failedConditions"
+                      :key="condIdx"
+                      class="failed-condition-row"
+                    >
+                      <el-tag type="danger" size="small">{{
+                        cond.fact
+                      }}</el-tag>
+                      <span class="failed-cond-op">{{ cond.operator }}</span>
+                      <el-tag size="small" type="info">{{
+                        JSON.stringify(cond.value)
+                      }}</el-tag>
+                      <span class="failed-cond-sep">但实际值为</span>
+                      <el-tag size="small" type="warning">{{
+                        JSON.stringify(cond.factValue)
+                      }}</el-tag>
+                    </div>
+                  </div>
                   <pre class="run-item-json">{{
                     JSON.stringify(
                       {
@@ -159,17 +182,9 @@ import RuleEditorPanel from "./components/RuleEditorPanel.vue";
 import signupFacts from "./examples/signup-facts.json";
 import signupRules from "./examples/signup-rules.json";
 import {
-  createConditionDraft,
-  createConditionGroupDraft,
-  createEventParamDraft,
-  createId,
   createRuleDraft,
   engineRuleToDraft,
   toEngineRule,
-  type ConditionLeafDraft,
-  type ConditionLogic,
-  type ConditionNodeDraft,
-  type ParamValueType,
   type RuleDraft
 } from "./model";
 
@@ -183,6 +198,12 @@ interface RuleRunLog {
   matched: boolean;
   events: Array<Record<string, any>>;
   failureEvents: Array<Record<string, any>>;
+  failedConditions: Array<{
+    fact: string;
+    operator: string;
+    value: unknown;
+    factValue: unknown;
+  }>;
   error: string;
 }
 
@@ -238,6 +259,39 @@ const parseFacts = () => {
     throw new Error("事实数据必须是 JSON 对象");
   }
   return parsed as Record<string, unknown>;
+};
+
+/**
+ * 递归提取不满足的叶子条件
+ */
+const extractFailedConditions = (
+  node: Record<string, any>
+): Array<{
+  fact: string;
+  operator: string;
+  value: unknown;
+  factValue: unknown;
+}> => {
+  if ("fact" in node) {
+    // 是叶子条件
+    if (node.result === false) {
+      return [
+        {
+          fact: String(node.fact ?? ""),
+          operator: String(node.operator ?? ""),
+          value: node.value,
+          factValue: node.factResult
+        }
+      ];
+    }
+    return [];
+  }
+
+  // 是分组条件，递归遍历子节点
+  const children: Record<string, any>[] = node.all ?? node.any ?? [];
+  return children.flatMap((child: Record<string, any>) =>
+    extractFailedConditions(child)
+  );
 };
 
 const fillImportFromCurrent = () => {
@@ -312,6 +366,7 @@ const runRules = async () => {
         matched: false,
         events: [],
         failureEvents: [],
+        failedConditions: [],
         error: ""
       };
 
@@ -341,6 +396,16 @@ const runRules = async () => {
             : events;
         log.failureEvents = result.failureEvents;
         log.matched = log.events.length > 0;
+        // 提取不满足的条件（仅对未命中的规则）
+        if (!log.matched && result.failureResults?.length > 0) {
+          const condTree = result.failureResults[0]?.conditions as Record<
+            string,
+            any
+          >;
+          if (condTree) {
+            log.failedConditions = extractFailedConditions(condTree);
+          }
+        }
       } catch (error) {
         log.error = (error as Error).message;
       }
@@ -478,5 +543,39 @@ const clearRunResult = () => {
   white-space: pre-wrap;
   background: var(--el-fill-color-light);
   border-radius: 6px;
+}
+
+.failed-conditions-block {
+  padding: 8px;
+  margin-top: 8px;
+  background: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger-light-7);
+  border-radius: 6px;
+}
+
+.failed-conditions-title {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-color-danger);
+}
+
+.failed-condition-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.failed-cond-op {
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.failed-cond-sep {
+  font-size: 12px;
+  color: var(--el-text-color-placeholder);
 }
 </style>

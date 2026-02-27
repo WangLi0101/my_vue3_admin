@@ -9,9 +9,17 @@ declare module "json-rules-engine" {
     };
   }
 
+  export interface RuleResult {
+    name: string;
+    conditions: Record<string, any>;
+    result: boolean;
+  }
+
   export interface EngineRunResult {
     events: Array<Record<string, any>>;
     failureEvents: Array<Record<string, any>>;
+    results: RuleResult[];
+    failureResults: RuleResult[];
   }
 
   export class Engine {
