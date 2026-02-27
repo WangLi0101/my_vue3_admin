@@ -62,6 +62,7 @@
     "element-plus": "^2.11.5",
     "jieba-wasm": "^2.4.0",
     "js-cookie": "^3.0.5",
+    "json-rules-engine": "^6.5.0",
     "localforage": "^1.10.0",
     "mitt": "^3.0.1",
     "nprogress": "^0.2.0",
