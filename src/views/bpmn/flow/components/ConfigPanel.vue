@@ -85,6 +85,7 @@ import UserTaskProps from "./properties/UserTaskProps.vue";
 import SequenceFlowProps from "./properties/SequenceFlowProps.vue";
 import ServiceTaskProps from "./properties/ServiceTaskProps.vue";
 import MultiInstanceProps from "./properties/MultiInstanceProps.vue";
+import EventProps from "./properties/EventProps.vue";
 
 interface Props {
   modeler: BpmnModeler;
@@ -106,7 +107,10 @@ const multiInstancePropsRef = useTemplateRef<
 const componentMap: Record<string, Component> = {
   "bpmn:UserTask": UserTaskProps,
   "bpmn:SequenceFlow": SequenceFlowProps,
-  "bpmn:ServiceTask": ServiceTaskProps
+  "bpmn:ServiceTask": ServiceTaskProps,
+  "bpmn:SendTask": ServiceTaskProps,
+  "bpmn:BusinessRuleTask": ServiceTaskProps,
+  "bpmn:IntermediateCatchEvent": EventProps
 };
 
 const elementType = computed(() => {
@@ -165,20 +169,15 @@ const handleSave = async () => {
   if (multiInstancePropsRef.value)
     propertyPromises.push(multiInstancePropsRef.value.getProperties());
 
-  try {
-    // Wait for all forms to validate and return their properties
-    const results = await Promise.all(propertyPromises);
+  // Wait for all forms to validate and return their properties
+  const results = await Promise.all(propertyPromises);
 
-    // Aggregate properties
-    const properties = Object.assign({}, ...results);
+  // Aggregate properties
+  const properties = Object.assign({}, ...results);
 
-    // Update BPMN model
-    modeling.updateProperties(selectedElement.value, properties);
-    ElMessage.success("保存成功");
-  } catch (error) {
-    console.error(error);
-    ElMessage.warning("请检查表单填写是否正确");
-  }
+  // Update BPMN model
+  modeling.updateProperties(selectedElement.value, properties);
+  ElMessage.success("保存成功");
 };
 </script>
 

@@ -55,6 +55,7 @@ import ConfigPanel from "./components/ConfigPanel.vue";
 import Palette from "./components/Palette.vue";
 
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { downloadFile } from "@/utils/tool";
 
 let modeler: BpmnModeler | null = null;
 const canvasRef = ref<HTMLElement | null>(null);
@@ -80,7 +81,8 @@ const init = () => {
 const save = async () => {
   if (!modeler) return;
   const { xml } = await modeler.saveXML({ format: true });
-  console.log(xml);
+  const blob = new Blob([xml], { type: "text/plain;charset=utf-8" });
+  downloadFile(blob, "leaveApproval.bpmn");
 };
 
 onBeforeUnmount(() => {

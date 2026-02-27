@@ -77,6 +77,39 @@ const elementGroups = [
     items: [
       { type: "bpmn:SubProcess", label: "子流程", icon: "subprocess-expanded" }
     ]
+  },
+  {
+    name: "高级任务",
+    items: [
+      { type: "bpmn:SendTask", label: "发送任务", icon: "send-task" },
+      { type: "bpmn:ReceiveTask", label: "接收任务", icon: "receive-task" },
+      {
+        type: "bpmn:BusinessRuleTask",
+        label: "规则任务",
+        icon: "business-rule-task"
+      }
+    ]
+  },
+  {
+    name: "中间事件",
+    items: [
+      {
+        type: "bpmn:IntermediateThrowEvent",
+        label: "投递事件",
+        icon: "intermediate-event-none"
+      },
+      {
+        type: "bpmn:IntermediateCatchEvent",
+        label: "捕获事件",
+        icon: "intermediate-event-catch-multiple"
+      }
+    ]
+  },
+  {
+    name: "协作",
+    items: [
+      { type: "bpmn:Participant", label: "泳池/参与者", icon: "participant" }
+    ]
   }
 ];
 

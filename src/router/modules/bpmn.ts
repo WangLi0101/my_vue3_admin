@@ -3,7 +3,7 @@ export default {
   path: "/bmpn",
   meta: {
     title: "bmpn",
-    icon: "ep:video-play",
+    icon: "lucide:workflow",
     rank: 0
   },
   children: [
