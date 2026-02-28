@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { ref } from "vue";
 import Editor from "@tinymce/tinymce-vue";
 import type {
   Editor as TinyMceEditorInstance,
@@ -59,7 +59,7 @@ const innerValue = defineModel<string>("modelValue", {
   required: true
 });
 
-const editorInit = computed<RawEditorOptions>(() => ({
+const editorInit: RawEditorOptions = {
   height: props.height,
   menubar: "edit view insert format table tools",
   branding: false,
@@ -83,7 +83,7 @@ const editorInit = computed<RawEditorOptions>(() => ({
       editor.execCommand("FontSize", false, "12px");
     });
   }
-}));
+};
 
 const handleInit = (_event: unknown, editor: TinyMceEditorInstance) => {
   editorRef.value = editor;
