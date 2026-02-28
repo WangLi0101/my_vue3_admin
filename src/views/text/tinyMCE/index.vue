@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import TinyMceEditor from "./components/TinyMceEditor.vue";
+import TinyMceEditor from "./components/tinyMceEditor.vue";
 
 const content = ref("");
 </script>
