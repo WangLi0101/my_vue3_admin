@@ -29,6 +29,10 @@
               <el-tag type="info">priority: {{ rule.priority }}</el-tag>
             </div>
             <el-space>
+              <el-button @click="openEditRuleDialog(rule.id)">
+                <el-icon><EditPen /></el-icon>
+                编辑基本信息
+              </el-button>
               <el-button @click="resetRule(rule.id)">
                 <el-icon><RefreshRight /></el-icon>
                 重置
@@ -41,21 +45,18 @@
           </div>
         </template>
 
-        <el-form label-width="96px" class="rule-form">
-          <el-form-item label="规则名称">
-            <el-input v-model="rule.name" placeholder="例如：报名资格通过" />
-          </el-form-item>
-          <el-form-item label="优先级">
-            <el-input-number v-model="rule.priority" :min="1" :max="999" />
-          </el-form-item>
-        </el-form>
-
         <div class="editor-section">
           <div class="section-title">条件关系预览</div>
           <div class="expression-box">{{ getRuleExpression(rule) }}</div>
         </div>
 
-        <RuleConditionsEditor v-model:root-condition="rule.rootCondition" />
+        <div class="editor-section">
+          <div class="section-title">条件树编辑</div>
+          <ConditionGroupEditor
+            v-model:group="rule.rootCondition"
+            :is-root="true"
+          />
+        </div>
 
         <div class="editor-section">
           <div class="section-title">
@@ -106,26 +107,34 @@
       </el-card>
     </div>
 
-    <el-dialog v-model="addRuleDialogVisible" title="新增规则" width="560px">
+    <el-dialog
+      v-model="addRuleDialogVisible"
+      :title="dialogTitle"
+      width="560px"
+    >
       <el-form label-width="96px">
         <el-form-item label="规则名称" required>
           <el-input
-            v-model="newRuleForm.name"
+            v-model="ruleBaseForm.name"
             placeholder="例如：报名资格通过"
           />
         </el-form-item>
         <el-form-item label="优先级">
-          <el-input-number v-model="newRuleForm.priority" :min="1" :max="999" />
+          <el-input-number
+            v-model="ruleBaseForm.priority"
+            :min="1"
+            :max="999"
+          />
         </el-form-item>
         <el-form-item label="根组关系">
-          <el-radio-group v-model="newRuleForm.conditionLogic">
+          <el-radio-group v-model="ruleBaseForm.conditionLogic">
             <el-radio-button value="all">全部满足（all）</el-radio-button>
             <el-radio-button value="any">任一满足（any）</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="事件类型">
           <el-input
-            v-model="newRuleForm.eventType"
+            v-model="ruleBaseForm.eventType"
             placeholder="rule.matched"
           />
         </el-form-item>
@@ -133,7 +142,9 @@
       <template #footer>
         <el-space>
           <el-button @click="addRuleDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="confirmAddRule">确认新增</el-button>
+          <el-button type="primary" @click="submitRuleBaseForm">
+            {{ dialogMode === "create" ? "确认新增" : "保存" }}
+          </el-button>
         </el-space>
       </template>
     </el-dialog>
@@ -141,10 +152,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
-import { Delete, Plus, RefreshRight } from "@element-plus/icons-vue";
-import RuleConditionsEditor from "./RuleConditionsEditor.vue";
+import { Delete, EditPen, Plus, RefreshRight } from "@element-plus/icons-vue";
+import ConditionGroupEditor from "./ConditionGroupEditor.vue";
 import {
   createEventParamDraft,
   createRuleDraft,
@@ -165,16 +176,30 @@ const emit = defineEmits<{
 const rulesRef = defineModel<RuleDraft[]>("rules", { required: true });
 const activeRuleIdRef = defineModel<string>("activeRuleId", { required: true });
 
+type RuleDialogMode = "create" | "edit";
+
 const addRuleDialogVisible = ref(false);
-const newRuleForm = ref({
+const dialogMode = ref<RuleDialogMode>("create");
+const editingRuleId = ref("");
+const ruleBaseForm = ref({
   name: "",
   priority: 1,
   conditionLogic: "all" as ConditionLogic,
   eventType: "rule.matched"
 });
 
+const dialogTitle = computed(() =>
+  dialogMode.value === "create" ? "新增规则" : "编辑规则基本信息"
+);
+
+const getRule = (ruleId: string) => {
+  return rulesRef.value.find(item => item.id === ruleId);
+};
+
 const openAddRuleDialog = () => {
-  newRuleForm.value = {
+  dialogMode.value = "create";
+  editingRuleId.value = "";
+  ruleBaseForm.value = {
     name: `规则 ${rulesRef.value.length + 1}`,
     priority: rulesRef.value.length + 1,
     conditionLogic: "all",
@@ -183,38 +208,58 @@ const openAddRuleDialog = () => {
   addRuleDialogVisible.value = true;
 };
 
-const confirmAddRule = () => {
-  const name = newRuleForm.value.name.trim();
+const openEditRuleDialog = (ruleId: string) => {
+  const target = getRule(ruleId);
+  if (!target) return;
+
+  dialogMode.value = "edit";
+  editingRuleId.value = ruleId;
+  ruleBaseForm.value = {
+    name: target.name || "",
+    priority: target.priority || 1,
+    conditionLogic: target.rootCondition.logic,
+    eventType: target.eventType || "rule.matched"
+  };
+  addRuleDialogVisible.value = true;
+};
+
+const submitRuleBaseForm = () => {
+  const name = ruleBaseForm.value.name.trim();
   if (!name) {
     ElMessage.warning("请填写规则名称");
     return;
   }
 
-  const next = createRuleDraft(rulesRef.value.length + 1);
-  next.name = name;
-  next.priority = newRuleForm.value.priority;
-  next.rootCondition.logic = newRuleForm.value.conditionLogic;
-  next.eventType = newRuleForm.value.eventType.trim() || "rule.matched";
+  if (dialogMode.value === "create") {
+    const next = createRuleDraft(rulesRef.value.length + 1);
+    next.name = name;
+    next.priority = ruleBaseForm.value.priority;
+    next.rootCondition.logic = ruleBaseForm.value.conditionLogic;
+    next.eventType = ruleBaseForm.value.eventType.trim() || "rule.matched";
 
-  rulesRef.value.push(next);
-  activeRuleIdRef.value = next.id;
+    rulesRef.value.push(next);
+    activeRuleIdRef.value = next.id;
+    ElMessage.success("规则已新增");
+  } else {
+    const target = getRule(editingRuleId.value);
+    if (!target) {
+      ElMessage.error("未找到要编辑的规则");
+      return;
+    }
+    target.name = name;
+    target.priority = ruleBaseForm.value.priority;
+    target.rootCondition.logic = ruleBaseForm.value.conditionLogic;
+    target.eventType = ruleBaseForm.value.eventType.trim() || "rule.matched";
+    ElMessage.success("规则基本信息已更新");
+  }
+
   addRuleDialogVisible.value = false;
-  ElMessage.success("规则已新增");
-};
-
-const getRule = (ruleId: string) => {
-  return rulesRef.value.find(item => item.id === ruleId);
 };
 
 const removeRule = (ruleId: string) => {
-  if (rulesRef.value.length <= 1) {
-    ElMessage.warning("至少保留一条规则");
-    return;
-  }
-
   rulesRef.value = rulesRef.value.filter(item => item.id !== ruleId);
   if (!rulesRef.value.some(item => item.id === activeRuleIdRef.value)) {
-    activeRuleIdRef.value = rulesRef.value[0].id;
+    activeRuleIdRef.value = rulesRef.value[0]?.id || "";
   }
 };
 
@@ -327,10 +372,6 @@ const getRuleExpression = (rule: RuleDraft) => {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.rule-form {
-  margin-top: 4px;
 }
 
 .editor-section {

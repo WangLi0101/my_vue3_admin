@@ -181,12 +181,7 @@ import { Engine, type RuleProperties } from "json-rules-engine";
 import RuleEditorPanel from "./components/RuleEditorPanel.vue";
 import signupFacts from "./examples/signup-facts.json";
 import signupRules from "./examples/signup-rules.json";
-import {
-  createRuleDraft,
-  engineRuleToDraft,
-  toEngineRule,
-  type RuleDraft
-} from "./model";
+import { engineRuleToDraft, toEngineRule, type RuleDraft } from "./model";
 
 defineOptions({
   name: "RuleEngineEditor"
@@ -211,8 +206,8 @@ interface ImportPayload {
   rules: Partial<RuleProperties>[];
 }
 
-const rules = ref<RuleDraft[]>([createRuleDraft(1)]);
-const activeRuleId = ref(rules.value[0].id);
+const rules = ref<RuleDraft[]>([]);
+const activeRuleId = ref("");
 
 const factsText = ref(JSON.stringify(signupFacts, null, 2));
 
@@ -343,6 +338,7 @@ const loadDemo = () => {
     return;
   }
   rules.value = demoRules;
+  console.log(rules.value);
   activeRuleId.value = demoRules[0].id;
   factsText.value = JSON.stringify(signupFacts, null, 2);
   ElMessage.success("报名系统示例规则已加载（6条规则）");

@@ -3,7 +3,7 @@ export default {
   path: "/ruleset",
   meta: {
     title: "规则引擎",
-    icon: "ep:video-play",
+    icon: "material-symbols-light:rule-folder-outline",
     rank: 0
   },
   children: [

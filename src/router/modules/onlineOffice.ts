@@ -3,7 +3,7 @@ export default {
   path: "/onlineOffice",
   meta: {
     title: "onlineOffice",
-    icon: "ep:video-play",
+    icon: "material-symbols:local-post-office-outline",
     rank: 0
   },
   children: [

@@ -3,7 +3,7 @@ export default {
   path: "/text",
   meta: {
     title: "文本处理",
-    icon: "ep:video-play",
+    icon: "teenyicons:calendar-x-outline",
     rank: 0
   },
   children: [
@@ -13,6 +13,16 @@ export default {
       component: () => import("@/views/text/diff/index.vue"),
       meta: {
         title: "文本对比",
+        // 通过设置showParent为true，显示父级
+        showParent: true
+      }
+    },
+    {
+      path: "/text/tinyMCE",
+      name: "tinyMCE",
+      component: () => import("@/views/text/tinyMCE/index.vue"),
+      meta: {
+        title: "TinyMCE",
         // 通过设置showParent为true，显示父级
         showParent: true
       }
