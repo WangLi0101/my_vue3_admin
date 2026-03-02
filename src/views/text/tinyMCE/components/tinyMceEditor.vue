@@ -55,8 +55,22 @@ const props = withDefaults(defineProps<Props>(), {
 
 const editorRef = ref<TinyMceEditorInstance>();
 
-const innerValue = defineModel<string>("modelValue", {
-  required: true
+// <转换为&lt; &gt;
+const escapeHtml = (value: string) => {
+  return value.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+};
+// 转换为html
+const unescapeHtml = (value: string) => {
+  return value.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+};
+
+const innerValue = defineModel<string>({
+  get(value) {
+    return unescapeHtml(value);
+  },
+  set(value) {
+    return escapeHtml(value);
+  }
 });
 
 const editorInit: RawEditorOptions = {

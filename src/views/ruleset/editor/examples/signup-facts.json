@@ -1,6 +1,7 @@
 {
   "age": 19,
   "score": 83,
+  "signupTimestamp": 1738368000000,
   "qualificationPassed": true,
   "seatsRemaining": 12,
   "signupDaysBeforeStart": 36,

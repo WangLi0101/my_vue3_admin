@@ -1,149 +1,81 @@
 [
   {
-    "name": "黑名单拦截",
+    "name": "单规则全操作符示例",
     "priority": 200,
     "conditions": {
-      "any": [
+      "all": [
         {
           "fact": "isBlacklisted",
           "operator": "equal",
-          "value": true
-        }
-      ]
-    },
-    "event": {
-      "type": "signup.rejected.blacklist",
-      "params": {
-        "reason": "blacklist"
-      }
-    }
-  },
-  {
-    "name": "未成年监护拦截",
-    "priority": 180,
-    "conditions": {
-      "all": [
-        {
-          "fact": "age",
-          "operator": "lessThan",
-          "value": 18
-        },
-        {
-          "fact": "guardianConsent",
-          "operator": "equal",
           "value": false
-        }
-      ]
-    },
-    "event": {
-      "type": "signup.rejected.guardian",
-      "params": {
-        "reason": "guardian-consent-required"
-      }
-    }
-  },
-  {
-    "name": "名额不足进入候补",
-    "priority": 150,
-    "conditions": {
-      "all": [
-        {
-          "fact": "seatsRemaining",
-          "operator": "lessThanInclusive",
-          "value": 0
-        }
-      ]
-    },
-    "event": {
-      "type": "signup.waitlist",
-      "params": {
-        "queue": "default-waitlist"
-      }
-    }
-  },
-  {
-    "name": "报名资格通过",
-    "priority": 100,
-    "conditions": {
-      "all": [
-        {
-          "fact": "age",
-          "operator": "greaterThanInclusive",
-          "value": 18
         },
         {
-          "any": [
-            {
-              "fact": "qualificationPassed",
-              "operator": "equal",
-              "value": true
-            },
-            {
-              "fact": "score",
-              "operator": "greaterThanInclusive",
-              "value": 85
-            }
-          ]
-        },
-        {
-          "fact": "seatsRemaining",
-          "operator": "greaterThan",
-          "value": 0
-        },
-        {
-          "fact": "score",
-          "operator": "greaterThanInclusive",
-          "value": 70
-        }
-      ]
-    },
-    "event": {
-      "type": "signup.approved",
-      "params": {
-        "enrollType": "normal"
-      }
-    }
-  },
-  {
-    "name": "早鸟优惠",
-    "priority": 80,
-    "conditions": {
-      "all": [
-        {
-          "fact": "signupDaysBeforeStart",
-          "operator": "greaterThanInclusive",
-          "value": 30
+          "fact": "channel",
+          "operator": "notEqual",
+          "value": "blocked"
         },
         {
           "fact": "paidAmount",
           "operator": "greaterThan",
           "value": 0
-        }
-      ]
-    },
-    "event": {
-      "type": "signup.discount.earlybird",
-      "params": {
-        "discountRate": 0.15
-      }
-    }
-  },
-  {
-    "name": "渠道激励",
-    "priority": 60,
-    "conditions": {
-      "any": [
+        },
+        {
+          "fact": "age",
+          "operator": "greaterThanInclusive",
+          "value": 18
+        },
+        {
+          "fact": "signupTimestamp",
+          "operator": "greaterThanInclusive",
+          "value": 1735689600000
+        },
+        {
+          "fact": "seatsRemaining",
+          "operator": "lessThan",
+          "value": 100
+        },
+        {
+          "fact": "score",
+          "operator": "lessThanInclusive",
+          "value": 83
+        },
+        {
+          "fact": "docsSubmitted",
+          "operator": "contains",
+          "value": "agreement"
+        },
+        {
+          "fact": "docsSubmitted",
+          "operator": "doesNotContain",
+          "value": "fraud"
+        },
         {
           "fact": "channel",
           "operator": "in",
           "value": ["school", "partner"]
+        },
+        {
+          "fact": "channel",
+          "operator": "notIn",
+          "value": ["blocked", "fraud"]
         }
       ]
     },
     "event": {
-      "type": "signup.channel.bonus",
+      "type": "signup.operator.all-in-one",
       "params": {
-        "tag": "channel-priority"
+        "operatorsCovered": [
+          "equal",
+          "notEqual",
+          "greaterThan",
+          "greaterThanInclusive",
+          "lessThan",
+          "lessThanInclusive",
+          "contains",
+          "doesNotContain",
+          "in",
+          "notIn"
+        ]
       }
     }
   }

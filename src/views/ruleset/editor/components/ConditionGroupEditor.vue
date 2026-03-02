@@ -45,9 +45,12 @@
             v-model="node.value"
             placeholder='值（支持 18 / true / ["vip"] / {"a":1}）'
           />
-          <el-button type="danger" plain @click="removeChild(node.id)">
-            删除
-          </el-button>
+          <el-button
+            type="danger"
+            link
+            :icon="Delete"
+            @click="removeChild(node.id)"
+          />
         </div>
         <ConditionGroupEditor
           v-else
