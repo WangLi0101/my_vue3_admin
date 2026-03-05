@@ -383,6 +383,8 @@ const runRules = async () => {
         });
 
         const result = await engine.run(facts);
+        console.log(result);
+
         log.events =
           result.events?.length > 0
             ? result.events.map(event => ({

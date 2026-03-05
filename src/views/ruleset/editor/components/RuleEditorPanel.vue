@@ -170,7 +170,7 @@ defineOptions({
 });
 
 const emit = defineEmits<{
-  loadDemo: [];
+  (e: "loadDemo"): void;
 }>();
 
 const rulesRef = defineModel<RuleDraft[]>("rules", { required: true });
